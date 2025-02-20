@@ -1,33 +1,29 @@
-
+# Base image
 ARG NODE_VERSION=20.14.0
-
-FROM node:${NODE_VERSION}-slim as base
-
+FROM node:${NODE_VERSION} as base
 ARG PORT=3000
 WORKDIR /src
 
 # Build stage
 FROM base as build
-
-COPY --link package.json package-lock.json ./
+COPY package.json ./
 RUN npm install
-
-COPY --link . .
-
+COPY . .
+RUN npm run postinstall
 RUN npm run build
 
 # Runtime stage
 FROM base
+WORKDIR /src
+
+# Copy the node_modules folder from build stage
+COPY --from=build /src/node_modules ./node_modules
+
+# Copy the built output from the build stage
+COPY --from=build /src/.output ./.output
 
 ENV PORT=$PORT
 ENV NODE_ENV=production
-
-COPY --from=build /src/.output /src/.output
-
-COPY --from=build /src/server/data /src/server/data
-
-COPY --from=build /src/public /src/public
-
 EXPOSE $PORT
 
 CMD ["node", ".output/server/index.mjs"]
